@@ -63,6 +63,8 @@ class iConsoleSWindow: UIWindow {
             return
         }
         
+        self.findAndResignFirstResponder(self)
+        
         self.addSubview(self.consoleVC.view)
         self.consoleVC.view.center = CGPointMake(self.center.x,
             self.center.y + CGRectGetMaxY(self.bounds))
@@ -90,5 +92,20 @@ class iConsoleSWindow: UIWindow {
                 self.isAnimating = false
                 self.consoleVC.view.removeFromSuperview()
         }
+    }
+    
+    private func findAndResignFirstResponder(view: UIView) -> Bool {
+        if view.isFirstResponder() {
+            view.resignFirstResponder()
+            return true
+        }
+        
+        for nextView in view.subviews {
+            if self.findAndResignFirstResponder(nextView) {
+                return true
+            }
+        }
+        
+        return false
     }
 }

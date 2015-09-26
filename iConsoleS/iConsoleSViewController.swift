@@ -99,6 +99,19 @@ class iConsoleSViewController: UIViewController {
         }
     }
     
+    private func encodeString(rawString: String) -> String? {
+        let rawNSString: NSString = rawString
+        guard let encodedString = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
+            rawNSString,
+            "[].",
+            ":/?&=;+!@#$()',*",
+            CFStringConvertNSStringEncodingToEncoding(NSUTF8StringEncoding)) else {
+                return nil;
+        }
+        
+        return encodedString as String
+    }
+    
     // MARK: UI Actions
     @objc private func clickedActionButton(sender: UIButton) {
         let alertController = UIAlertController(title: nil, message: nil, preferredStyle: .ActionSheet)
@@ -107,13 +120,24 @@ class iConsoleSViewController: UIViewController {
         }
         alertController.addAction(cancelAction)
         
-        let sendMailAction = UIAlertAction(title: "Send by Email", style: .Default) { (action) in
-//            SString *URLSafeName = [self URLEncodedString:[[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"]];
-//            NSString *URLSafeLog = [self URLEncodedString:[_log componentsJoinedByString:@"\n"]];
-//            NSMutableString *URLString = [NSMutableString stringWithFormat:@"mailto:%@?subject=%@%%20Console%%20Log&body=%@",
-//            _logSubmissionEmail ?: @"", URLSafeName, URLSafeLog];
-//            
-//            [[UIApplication sharedApplication] openURL:[NSURL URLWithString:URLString]];
+        let sendMailAction = UIAlertAction(title: "Send by Email", style: .Default) { [weak self] (action) in
+            guard let strongSelf = self else {
+                return
+            }
+            
+            guard let encodedSubject = strongSelf.encodeString("log from iConsoleS") else {
+                return
+            }
+            
+            guard let encodedContent = strongSelf.encodeString(strongSelf.infoTextView.text) else {
+                return
+            }
+            
+            let urlString = "mailto:?subject=\(encodedSubject)&body=\(encodedContent)"
+            
+            if let mailURL = NSURL(string: urlString) {
+                UIApplication.sharedApplication().openURL(mailURL)
+            }
         }
         alertController.addAction(sendMailAction)
         
@@ -122,13 +146,27 @@ class iConsoleSViewController: UIViewController {
         }
         alertController.addAction(closeAction)
         
-        let gotoTopAction = UIAlertAction(title: "Go to Top", style: .Default) { (action) in
+        let gotoTopAction = UIAlertAction(title: "Go to Top", style: .Default) { [weak self] (action) in
+            self?.infoTextView.scrollRangeToVisible(NSMakeRange(0, 0))
         }
         alertController.addAction(gotoTopAction)
-        
-        let gotoBottomAction = UIAlertAction(title: "Go to Bottom", style: .Default) { (action) in
+
+        let gotoBottomAction = UIAlertAction(title: "Go to Bottom", style: .Default) { [weak self] (action) in
+            guard let strongSelf = self else {
+                return;
+            }
+            
+            strongSelf.infoTextView.scrollRectToVisible(CGRectMake(0,
+                strongSelf.infoTextView.contentSize.height - 1,
+                strongSelf.infoTextView.contentSize.width,
+                1), animated: true)
         }
         alertController.addAction(gotoBottomAction)
+        
+//        let gotoBottomAction = UIAlertAction(title: "Go to Bottom", style: .Default) { [weak self] (action) in
+//            self?.infoTextView.scrollRectToVisible(CGRectZero, animated: YES)
+//        }
+//        alertController.addAction(gotoBottomAction)
         
         let clearAction = UIAlertAction(title: "Clear Log", style: .Destructive) { [weak self] (action) in
             self?.infoTextView.text = nil
@@ -136,6 +174,12 @@ class iConsoleSViewController: UIViewController {
         alertController.addAction(clearAction)
         
         self.presentViewController(alertController, animated: true, completion: nil)
+    }
+    
+    @objc private func handleSwipeGesture(gesture: UISwipeGestureRecognizer) {
+        if gesture.state == .Ended {
+            self.closeConsoleBlock?()
+        }
     }
 }
 
