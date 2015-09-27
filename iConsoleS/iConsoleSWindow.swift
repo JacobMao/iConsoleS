@@ -56,6 +56,7 @@ class iConsoleSWindow: UIWindow {
     
     func log(logMessage: String) {
         self.consoleVC.log(logMessage)
+        NSLog(logMessage)
     }
     
     private func showConsole() {
