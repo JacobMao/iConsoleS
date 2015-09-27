@@ -9,6 +9,10 @@
 import UIKit
 
 func logToiConsoleS(message: String) {
+    defer {
+        NSLog(message)
+    }
+    
     guard let currentKeyWindow = UIApplication.sharedApplication().keyWindow else {
         return;
     }
@@ -56,7 +60,6 @@ class iConsoleSWindow: UIWindow {
     
     func log(logMessage: String) {
         self.consoleVC.log(logMessage)
-        NSLog(logMessage)
     }
     
     private func showConsole() {
