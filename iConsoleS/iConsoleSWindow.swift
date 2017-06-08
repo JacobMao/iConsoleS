@@ -13,11 +13,8 @@ func logToiConsoleS(message: String) {
         NSLog(message)
     }
     
-    guard let currentKeyWindow = UIApplication.sharedApplication().keyWindow else {
-        return;
-    }
-    
-    guard let consoleWindow = currentKeyWindow as? iConsoleSWindow else {
+    guard let currentKeyWindow = UIApplication.shared.keyWindow,
+          let consoleWindow = currentKeyWindow as? iConsoleSWindow else {
         return;
     }
     
@@ -28,10 +25,9 @@ class iConsoleSWindow: UIWindow {
     // MARK: Private Properties
     private lazy var consoleVC: iConsoleSViewController = {
         let res = iConsoleSViewController(closeConsoleBlock: { [weak self] () -> Void in
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, Int64(UInt64(0.5)*NSEC_PER_SEC)),
-                dispatch_get_main_queue()) { () -> Void in
-                    self?.hideConsole()
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: {
+                self?.hideConsole()
+            })
         })
         
         return res
@@ -40,72 +36,72 @@ class iConsoleSWindow: UIWindow {
     private var isAnimating = false
     
     // MARK: Methods
-    override func motionEnded(motion: UIEventSubtype, withEvent event: UIEvent?) {
-        if motion == .MotionShake {
-            if self.consoleVC.view.superview == nil {
-                self.showConsole()
+    override func motionEnded(_ motion: UIEventSubtype, with event: UIEvent?) {
+        if motion == .motionShake {
+            if consoleVC.view.superview == nil {
+                showConsole()
             } else {
-                self.hideConsole()
+                hideConsole()
             }
         }
         
-        return super.motionEnded(motion, withEvent: event)
+        return super.motionEnded(motion, with: event)
     }
     
     override func layoutSubviews() {
-        self.consoleVC.view.frame = self.bounds
+        consoleVC.view.frame = bounds
         
         super.layoutSubviews()
     }
     
-    func log(logMessage: String) {
-        self.consoleVC.log(logMessage)
+    func log(_ logMessage: String) {
+        consoleVC.log(logMessage)
     }
     
     private func showConsole() {
-        if self.isAnimating {
+        if isAnimating {
             return
         }
         
-        self.findAndResignFirstResponder(self)
+        findAndResignFirstResponder(rootView: self)
         
-        self.addSubview(self.consoleVC.view)
-        self.consoleVC.view.center = CGPointMake(self.center.x,
-            self.center.y + CGRectGetMaxY(self.bounds))
         
-        self.isAnimating = true
-        UIView.animateWithDuration(0.3,
-            animations: { () -> Void in
-                self.consoleVC.view.center = self.center
-            }) { (finished: Bool) -> Void in
-                self.isAnimating = false
+        addSubview(consoleVC.view)
+        consoleVC.view.center = CGPoint(x: center.x, y: center.y + bounds.maxY)
+        
+        isAnimating = true
+        UIView.animate(withDuration: 0.3,
+                       animations: {
+                        self.consoleVC.view.center = self.center
+        }) { (_) in
+            self.isAnimating = false
         }
     }
     
     private func hideConsole() {
-        if self.isAnimating {
+        if isAnimating {
             return
         }
         
-        self.isAnimating = true
-        UIView.animateWithDuration(0.3,
-            animations: { () -> Void in
-                self.consoleVC.view.center = CGPointMake(self.center.x,
-                    self.center.y + CGRectGetMaxY(self.bounds))
-            }) { (finished: Bool) -> Void in
-                self.isAnimating = false
-                self.consoleVC.view.removeFromSuperview()
+        isAnimating = true
+        UIView.animate(withDuration: 0.3,
+                       animations: {
+                        self.consoleVC.view.center = CGPoint(x: self.center.x, y: self.center.y + self.bounds.maxY)
+        }) { (_) in
+            self.isAnimating = false
+            self.consoleVC.view.removeFromSuperview()
         }
     }
     
-    private func findAndResignFirstResponder(view: UIView) -> Bool {
-        if view.isFirstResponder() {
-            view.resignFirstResponder()
+    @discardableResult
+    private func findAndResignFirstResponder(rootView: UIView) -> Bool {
+        if rootView.isFirstResponder {
+            rootView.resignFirstResponder()
             return true
         }
         
-        for nextView in view.subviews {
-            if self.findAndResignFirstResponder(nextView) {
+        for nextView in rootView.subviews {
+            if findAndResignFirstResponder(rootView: nextView) {
                 return true
             }
         }

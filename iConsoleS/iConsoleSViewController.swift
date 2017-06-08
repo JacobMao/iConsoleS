@@ -10,43 +10,41 @@ import UIKit
 
 typealias T_CloseConsoleBlockType = () -> Void
 
-struct iConsoleSStyle {
-    var backgroundColor: UIColor = UIColor.blackColor()
-    var textColor: UIColor = UIColor.whiteColor()
-    var indicatorStyle: UIScrollViewIndicatorStyle = .White
-}
-
 class iConsoleSViewController: UIViewController {
     // MARK: Views
     private lazy var infoTextView: UITextView = {
         let textView = UITextView()
-        textView.editable = false
-        textView.textColor = self.myStyle.textColor
-        textView.backgroundColor = self.myStyle.backgroundColor
-        textView.indicatorStyle = self.myStyle.indicatorStyle
-        textView.font = UIFont(name: "Courier", size: 12)
+        textView.isEditable = false
+        textView.textColor = Style.textColor
+        textView.backgroundColor = Style.backgroundColor
+        textView.indicatorStyle = Style.indicatorStyle
+        textView.font = Style.textFont
         textView.alwaysBounceVertical = true
         
         return textView
     }()
     
     private lazy var actionButton: UIButton = {
-        let but = UIButton(type: .Custom)
-        but.setTitle("⚙", forState: .Normal)
-        but.setTitleColor(self.myStyle.textColor, forState: .Normal)
-        but.setTitleColor(self.myStyle.textColor.colorWithAlphaComponent(0.5), forState: .Highlighted)
-        but.titleLabel?.font = but.titleLabel?.font.fontWithSize(iConsoleSViewController.touchAreaOfActionButton.width)
-        but.autoresizingMask = [.None]
+        let but = UIButton(type: .custom)
+        but.setTitle("⚙", for: .normal)
+        but.setTitleColor(Style.textColor, for: .normal)
+        but.setTitleColor(Style.textColor.withAlphaComponent(0.5), for: .highlighted)
+        but.titleLabel?.font = but.titleLabel?.font.withSize(Style.touchAreaOfActionButton.width)
+        but.autoresizingMask = []
         
-        but.addTarget(self, action: "clickedActionButton:", forControlEvents: .TouchUpInside)
-        
+        but.addTarget(self, action: #selector(iConsoleSViewController.clickedActionButton), for: .touchUpInside)
         
         return but
     }()
     
     // MARK: Properties
-    var myStyle: iConsoleSStyle = iConsoleSStyle()
-    static private let touchAreaOfActionButton = CGSizeMake(40, 40)
+    private struct Style {
+        static let backgroundColor: UIColor = UIColor.black
+        static let textColor: UIColor = UIColor.white
+        static let indicatorStyle: UIScrollViewIndicatorStyle = .white
+        static let textFont: UIFont? = UIFont(name: "Courier", size: 12)
+        static let touchAreaOfActionButton: CGSize = CGSize(width: 40, height: 40)
+    }
     
     let closeConsoleBlock: T_CloseConsoleBlockType?
     
@@ -63,25 +61,13 @@ class iConsoleSViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
     }
     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         
-        if self.infoTextView.superview == nil {
-            self.view.addSubview(self.infoTextView)
-        }
-        self.infoTextView.frame = self.view.bounds
-        
-        if self.actionButton.superview == nil {
-            self.view.addSubview(self.actionButton)
-        }
-        let xOffset = self.view.bounds.size.width - iConsoleSViewController.touchAreaOfActionButton.width - 5
-        let yOffset = self.view.bounds.size.height - iConsoleSViewController.touchAreaOfActionButton.height - 5
-        self.actionButton.frame = CGRectMake(xOffset, yOffset,
-            iConsoleSViewController.touchAreaOfActionButton.width,
-            iConsoleSViewController.touchAreaOfActionButton.height)
+        setupTextView()
+        setupActionButton()
     }
     
     override func didReceiveMemoryWarning() {
@@ -89,8 +75,8 @@ class iConsoleSViewController: UIViewController {
         // Dispose of any resources that can be recreated.
     }
     
-    func log(logMessage: String) {
-        dispatch_async(dispatch_get_main_queue()) { [weak self] () -> Void in
+    func log(_ logMessage: String) {
+        DispatchQueue.main.async { [weak self] in
             guard let strongSelf = self else {
                 return
             }
@@ -98,88 +84,100 @@ class iConsoleSViewController: UIViewController {
             strongSelf.infoTextView.text = strongSelf.infoTextView.text + ">>> " + logMessage + "\n"
         }
     }
-    
-    private func encodeString(rawString: String) -> String? {
-        let rawNSString: NSString = rawString
-        guard let encodedString = CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault,
-            rawNSString,
-            "[].",
-            ":/?&=;+!@#$()',*",
-            CFStringConvertNSStringEncodingToEncoding(NSUTF8StringEncoding)) else {
-                return nil;
-        }
-        
-        return encodedString as String
+}
+
+// MARK: Private Methods
+private extension iConsoleSViewController {
+    func encodeString(_ rawString: String) -> String? {
+        return rawString.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryAllowed)
     }
     
-    // MARK: UI Actions
-    @objc private func clickedActionButton(sender: UIButton) {
-        let alertController = UIAlertController(title: nil, message: nil, preferredStyle: .ActionSheet)
-        
-        let cancelAction = UIAlertAction(title: "Cancel", style: .Cancel) { (action) -> Void in
+    func setupTextView() {
+        if infoTextView.superview == nil {
+            view.addSubview(infoTextView)
         }
-        alertController.addAction(cancelAction)
         
-        let sendMailAction = UIAlertAction(title: "Send by Email", style: .Default) { [weak self] (action) in
-            guard let strongSelf = self else {
-                return
-            }
-            
-            guard let encodedSubject = strongSelf.encodeString("log from iConsoleS") else {
-                return
-            }
-            
-            guard let encodedContent = strongSelf.encodeString(strongSelf.infoTextView.text) else {
-                return
+        infoTextView.frame = view.bounds
+    }
+    
+    func setupActionButton() {
+        if actionButton.superview == nil {
+            view.addSubview(actionButton)
+        }
+        
+        let xOffset = view.bounds.size.width - Style.touchAreaOfActionButton.width - 5
+        let yOffset = view.bounds.size.height - Style.touchAreaOfActionButton.height - 5
+        actionButton.frame = CGRect(x: xOffset,
+                                    y: yOffset,
+                                    width: Style.touchAreaOfActionButton.width,
+                                    height: Style.touchAreaOfActionButton.height)
+    }
+    
+    // MARK: Alert Actions
+    var sendMailAction: UIAlertAction {
+        return UIAlertAction(title: "Send by Email", style: .default) { [weak self] (action) in
+            guard let strongSelf = self,
+                let encodedSubject = strongSelf.encodeString("log from iConsoleS"),
+                let encodedContent = strongSelf.encodeString(strongSelf.infoTextView.text) else {
+                    return
             }
             
             let urlString = "mailto:?subject=\(encodedSubject)&body=\(encodedContent)"
-            
-            if let mailURL = NSURL(string: urlString) {
-                UIApplication.sharedApplication().openURL(mailURL)
+            if let mailURL = URL(string: urlString) {
+                UIApplication.shared.open(mailURL, options: [:], completionHandler: nil)
             }
         }
-        alertController.addAction(sendMailAction)
-        
-        let closeAction = UIAlertAction(title: "Close Console", style: .Default) { [weak self] (action) in
+    }
+    
+    var closeAction: UIAlertAction {
+        return UIAlertAction(title: "Close Console", style: .default) { [weak self] (action) in
             self?.closeConsoleBlock?()
         }
-        alertController.addAction(closeAction)
-        
-        let gotoTopAction = UIAlertAction(title: "Go to Top", style: .Default) { [weak self] (action) in
+    }
+    
+    var gotoTopAction: UIAlertAction {
+        return UIAlertAction(title: "Go to Top", style: .default) { [weak self] (action) in
             self?.infoTextView.scrollRangeToVisible(NSMakeRange(0, 0))
         }
-        alertController.addAction(gotoTopAction)
-
-        let gotoBottomAction = UIAlertAction(title: "Go to Bottom", style: .Default) { [weak self] (action) in
+    }
+    
+    var gotoBottomAction: UIAlertAction {
+        return UIAlertAction(title: "Go to Bottom", style: .default) { [weak self] (action) in
             guard let strongSelf = self else {
                 return;
             }
             
-            strongSelf.infoTextView.scrollRectToVisible(CGRectMake(0,
-                strongSelf.infoTextView.contentSize.height - 1,
-                strongSelf.infoTextView.contentSize.width,
-                1), animated: true)
+            let scrollRect = CGRect(x: 0,
+                                    y: strongSelf.infoTextView.contentSize.height - 1,
+                                    width: strongSelf.infoTextView.contentSize.width,
+                                    height: 1)
+            strongSelf.infoTextView.scrollRectToVisible(scrollRect, animated: true)
         }
-        alertController.addAction(gotoBottomAction)
-        
-//        let gotoBottomAction = UIAlertAction(title: "Go to Bottom", style: .Default) { [weak self] (action) in
-//            self?.infoTextView.scrollRectToVisible(CGRectZero, animated: YES)
-//        }
-//        alertController.addAction(gotoBottomAction)
-        
-        let clearAction = UIAlertAction(title: "Clear Log", style: .Destructive) { [weak self] (action) in
-            self?.infoTextView.text = nil
-        }
-        alertController.addAction(clearAction)
-        
-        self.presentViewController(alertController, animated: true, completion: nil)
     }
     
-    @objc private func handleSwipeGesture(gesture: UISwipeGestureRecognizer) {
-        if gesture.state == .Ended {
-            self.closeConsoleBlock?()
+    var clearAction: UIAlertAction {
+        return UIAlertAction(title: "Clear Log", style: .destructive) { [weak self] (action) in
+            self?.infoTextView.text = nil
+        }
+    }
+    
+    // MARK: UI Actions
+    @objc func clickedActionButton(sender: UIButton) {
+        let alertController = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        
+        alertController.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alertController.addAction(sendMailAction)
+        alertController.addAction(closeAction)
+        alertController.addAction(gotoTopAction)
+        alertController.addAction(gotoBottomAction)
+        alertController.addAction(clearAction)
+        
+        self.present(alertController, animated: true, completion: nil)
+    }
+    
+    @objc func handleSwipeGesture(gesture: UISwipeGestureRecognizer) {
+        if gesture.state == .ended {
+            closeConsoleBlock?()
         }
     }
 }
-
